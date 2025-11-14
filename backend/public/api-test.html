@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PTE Dictation API 测试工具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .lucide { width: 20px; height: 20px; }
+    pre { background: #1a1a1a; color: #d4d4d4; padding: 1rem; border-radius: 0.5rem; overflow: auto; font-size: 0.9rem; }
+    .response { min-height: 100px; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-6">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-emerald-400 mb-2 flex items-center gap-2">
+      <i data-lucide="test-tube"></i> PTE Dictation API 测试工具
+    </h1>
+    <p class="text-gray-400 mb-8">本地测试所有 API，<strong class="text-emerald-400">不影响部署</strong></p>
+
+    <!-- 健康检查 -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+      <h2 class="text-xl font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+        <i data-lucide="heart-pulse"></i> GET /health
+      </h2>
+      <button onclick="testHealth()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded flex items-center gap-2">
+        <i data-lucide="play"></i> 测试健康检查
+      </button>
+      <pre id="health-result" class="response mt-4">点击按钮测试...</pre>
+    </div>
+
+    <!-- 获取句子列表 -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+      <h2 class="text-xl font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+        <i data-lucide="list"></i> GET /api/sentences
+      </h2>
+      <div class="flex gap-2 mb-3">
+        <input type="number" id="page" placeholder="页码" value="1" class="bg-gray-700 text-white px-3 py-2 rounded w-24" />
+        <input type="number" id="limit" placeholder="每页数量" value="5" class="bg-gray-700 text-white px-3 py-2 rounded w-32" />
+        <button onclick="testGetSentences()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded flex items-center gap-2">
+          <i data-lucide="play"></i> 获取句子
+        </button>
+      </div>
+      <pre id="sentences-result" class="response mt-4">点击按钮获取句子列表...</pre>
+    </div>
+
+    <!-- 获取单个句子 -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+      <h2 class="text-xl font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+        <i data-lucide="file-text"></i> GET /api/sentences/:id
+      </h2>
+      <div class="flex gap-2 mb-3">
+        <input type="number" id="sentence-id" placeholder="句子 ID" class="bg-gray-700 text-white px-3 py-2 rounded flex-1" />
+        <button onclick="testGetSentence()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded flex items-center gap-2">
+          <i data-lucide="play"></i> 获取
+        </button>
+      </div>
+      <pre id="sentence-result" class="response mt-4">输入 ID 并点击获取...</pre>
+    </div>
+
+    <!-- 上传句子 -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
+      <h2 class="text-xl font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+        <i data-lucide="upload-cloud"></i> POST /api/sentences
+      </h2>
+      <form id="upload-form" class="space-y-3">
+        <input type="text" id="original" placeholder="原文（英文）" required class="w-full bg-gray-700 text-white px-3 py-2 rounded" />
+        <input type="text" id="translation" placeholder="翻译（中文）" required class="w-full bg-gray-700 text-white px-3 py-2 rounded" />
+        <input type="text" id="explanation" placeholder="解析（可选）" class="w-full bg-gray-700 text-white px-3 py-2 rounded" />
+        <select id="difficulty" class="w-full bg-gray-700 text-white px-3 py-2 rounded">
+          <option value="easy">简单</option>
+          <option value="medium" selected>中等</option>
+          <option value="hard">困难</option>
+        </select>
+        <input type="file" id="audio" accept="audio/*" required class="w-full bg-gray-700 text-white px-3 py-2 rounded file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-emerald-600 file:text-white" />
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded flex items-center justify-center gap-2">
+          <i data-lucide="upload"></i> 上传句子
+        </button>
+      </form>
+      <pre id="upload-result" class="response mt-4">等待上传...</pre>
+    </div>
+  </div>
+
+  <script>
+    // 修复：先声明 API_BASE
+    const API_BASE = '';
+
+    lucide.createIcons();
+
+    // 健康检查
+    async function testHealth() {
+      const el = document.getElementById('health-result');
+      el.textContent = '请求中...';
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        el.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        el.textContent = '错误: ' + err.message;
+      }
+    }
+
+    // 获取句子列表
+    async function testGetSentences() {
+      const page = document.getElementById('page').value || 1;
+      const limit = document.getElementById('limit').value || 5;
+      const el = document.getElementById('sentences-result');
+      el.textContent = '请求中...';
+      try {
+        const res = await fetch(`${API_BASE}/api/sentences?page=${page}&limit=${limit}`);
+        const data = await res.json();
+        el.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        el.textContent = '错误: ' + err.message;
+      }
+    }
+
+    // 获取单个句子
+    async function testGetSentence() {
+      const id = document.getElementById('sentence-id').value;
+      if (!id) return alert('请输入 ID');
+      const el = document.getElementById('sentence-result');
+      el.textContent = '请求中...';
+      try {
+        const res = await fetch(`${API_BASE}/api/sentences/${id}`);
+        const data = await res.json();
+        el.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        el.textContent = '错误: ' + err.message;
+      }
+    }
+
+    // 上传句子
+    document.getElementById('upload-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('upload-result');
+      el.textContent = '上传中...';
+
+      const formData = new FormData();
+      formData.append('original', document.getElementById('original').value);
+      formData.append('translation', document.getElementById('translation').value);
+      formData.append('explanation', document.getElementById('explanation').value);
+      formData.append('difficulty', document.getElementById('difficulty').value);
+      formData.append('audio', document.getElementById('audio').files[0]);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/sentences`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        el.textContent = JSON.stringify(data, null, 2);
+        if (res.ok) e.target.reset();
+      } catch (err) {
+        el.textContent = '错误: ' + err.message;
+      }
+    };
+
+    // 初始化图标
+    lucide.createIcons();
+  </script>
+</body>
+</html>

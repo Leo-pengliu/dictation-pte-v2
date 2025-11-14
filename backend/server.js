@@ -46,6 +46,7 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(uploadsDir));
 
 // ==================== 4. 中间件 ====================
+app.use(express.static('public'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
