@@ -1,5 +1,5 @@
 // src/lib/api.ts
-const API = 'http://localhost:3000/api';
+const API = 'https://dictation-pte-v2.vercel.app/api';
 
 export interface Sentence {
   id: number;

@@ -123,7 +123,7 @@ export default function PracticePage() {
       if (isPreload) {
         setNextSentence(newSentence);
         // 预加载音频
-        const audio = new Audio(`http://localhost:3000${newSentence.audioPath}`);
+        const audio = new Audio(`https://dictation-pte-v2.vercel.app${newSentence.audioPath}`);
         audio.preload = 'auto';
         nextAudioRef.current = audio;
       } else {
@@ -235,7 +235,7 @@ export default function PracticePage() {
                 <>
                   <DictationPlayer
                     key={sentence.id}
-                    audioUrl={`http://localhost:3000${sentence.audioPath}`}
+                    audioUrl={`https://dictation-pte-v2.vercel.app${sentence.audioPath}`}
                     onReplay={() => audioRef.current?.play()}
                     autoPlay
                   />
