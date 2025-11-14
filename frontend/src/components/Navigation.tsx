@@ -1,7 +1,6 @@
 // components/Navigation.tsx
 import { NavLink } from 'react-router-dom';
 import styled from 'styled-components';
-import { motion } from 'framer-motion';
 import { Headphones, Upload } from 'lucide-react';
 
 const Nav = styled.nav`

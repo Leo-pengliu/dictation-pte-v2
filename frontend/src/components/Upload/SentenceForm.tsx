@@ -4,7 +4,6 @@ import { api } from '../../lib/api';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload,
   Mic,
   Trash2,
   CheckCircle,
