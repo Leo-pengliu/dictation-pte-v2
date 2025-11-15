@@ -1,5 +1,5 @@
 // src/lib/api.ts
-const API = 'https://dictation-pte-v2.vercel.app/api';
+const API = 'https://dictation-pte.onrender.com/api';
 
 export interface Sentence {
   id: number;
