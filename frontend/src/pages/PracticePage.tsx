@@ -8,24 +8,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styled from 'styled-components';
 import { Volume2, Loader2 } from 'lucide-react';
 
+// 响应式容器
 const Container = styled.div`
   min-height: 100vh;
-  padding: 6rem 1rem 2rem;
+  padding: 4rem 1rem 2rem;
   max-width: 900px;
   margin: 0 auto;
+  width: 100%;
 `;
 
+// 响应式卡片
 const Card = styled(motion.div)`
   background: rgba(30, 41, 59, 0.5);
   backdrop-filter: blur(12px);
   border: 1px solid ${p => p.theme.colors.border};
   border-radius: ${p => p.theme.radius.xl};
-  padding: 2rem;
+  padding: 1.5rem;
   box-shadow: ${p => p.theme.shadow.xl};
+
+  @media (min-width: 640px) {
+    padding: 2rem;
+  }
 `;
 
+// 响应式标题
 const Title = styled.h1`
-  font-size: 2.5rem;
+  font-size: 1.875rem;
   font-weight: 700;
   background: linear-gradient(to right, ${p => p.theme.colors.primaryLight}, ${p => p.theme.colors.accent});
   -webkit-background-clip: text;
@@ -33,20 +41,28 @@ const Title = styled.h1`
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  @media (min-width: 640px) {
+    font-size: 2.5rem;
+    gap: 1rem;
+  }
 `;
 
+// 响应式输入框
 const Textarea = styled.textarea`
   width: 100%;
-  padding: 1rem;
+  padding: 0.875rem;
   background: rgba(51, 65, 85, 0.5);
   border: 1px solid ${p => p.theme.colors.border};
   border-radius: ${p => p.theme.radius.lg};
   color: ${p => p.theme.colors.text};
   font-family: ${p => p.theme.font.mono};
-  font-size: 1.1rem;
+  font-size: 1rem;
   resize: none;
-  height: 140px;
+  height: 120px;
   outline: none;
   transition: all 0.3s;
 
@@ -57,16 +73,24 @@ const Textarea = styled.textarea`
 
   &::placeholder {
     color: ${p => p.theme.colors.textMuted};
+    font-size: 0.9375rem;
+  }
+
+  @media (min-width: 640px) {
+    padding: 1rem;
+    font-size: 1.1rem;
+    height: 140px;
   }
 `;
 
+// 响应式按钮
 const Button = styled(motion.button)`
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   border: none;
   border-radius: ${p => p.theme.radius.lg};
   font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   width: 100%;
   margin-top: 1rem;
 
@@ -74,9 +98,14 @@ const Button = styled(motion.button)`
     background: linear-gradient(to right, ${p => p.theme.colors.primary}, ${p => p.theme.colors.accent});
     color: white;
   }
+
+  @media (min-width: 640px) {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
 `;
 
-// 骨架屏组件
+// 响应式骨架屏
 const SkeletonLine = styled.div`
   height: 1.5rem;
   background: linear-gradient(90deg, #334155 25%, #1e293b 50%, #334155 75%);
@@ -92,12 +121,16 @@ const SkeletonLine = styled.div`
 `;
 
 const SkeletonTextarea = styled.div`
-  height: 140px;
+  height: 120px;
   background: linear-gradient(90deg, #334155 25%, #1e293b 50%, #334155 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: ${p => p.theme.radius.lg};
   margin-bottom: 1rem;
+
+  @media (min-width: 640px) {
+    height: 140px;
+  }
 `;
 
 export default function PracticePage() {
@@ -108,11 +141,10 @@ export default function PracticePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(false); // 切换中
+  const [switching, setSwitching] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const nextAudioRef = useRef<HTMLAudioElement>(null);
 
-  // 加载句子（支持预加载）
   const loadSentence = useCallback(async (page: number, isPreload = false) => {
     if (!isPreload) setSwitching(true);
     try {
@@ -122,7 +154,6 @@ export default function PracticePage() {
 
       if (isPreload) {
         setNextSentence(newSentence);
-        // 预加载音频
         const audio = new Audio(`https://dictation-pte-v2.vercel.app${newSentence.audioPath}`);
         audio.preload = 'auto';
         nextAudioRef.current = audio;
@@ -144,19 +175,16 @@ export default function PracticePage() {
     }
   }, []);
 
-  // 初始化
   useEffect(() => {
     loadSentence(1);
   }, [loadSentence]);
 
-  // 预加载下一句
   useEffect(() => {
     if (currentPage < totalPages && !nextSentence) {
       loadSentence(currentPage + 1, true);
     }
   }, [currentPage, totalPages, nextSentence, loadSentence]);
 
-  // 自动播放（等音频就绪）
   useEffect(() => {
     if (!sentence || loading || switching) return;
     const audio = audioRef.current;
@@ -166,7 +194,7 @@ export default function PracticePage() {
       audio.play().catch(() => {});
     };
 
-    if (audio.readyState >= 3) { // HAVE_FUTURE_DATA
+    if (audio.readyState >= 3) {
       playWhenReady();
     } else {
       audio.addEventListener('canplaythrough', playWhenReady, { once: true });
@@ -177,7 +205,6 @@ export default function PracticePage() {
     };
   }, [sentence, loading, switching]);
 
-  // 切换句子（使用预加载）
   const handleNext = () => {
     if (!nextSentence || currentPage >= totalPages) return;
     setSwitching(true);
@@ -186,16 +213,14 @@ export default function PracticePage() {
     setUserInput('');
     setShowResult(false);
     setNextSentence(null);
-    // 切换音频
     audioRef.current = nextAudioRef.current;
     nextAudioRef.current = null;
     setSwitching(false);
   };
 
-  // 加载中 UI
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 size={48} color="#10b981" className="animate-spin" />
       </div>
     );
@@ -210,7 +235,7 @@ export default function PracticePage() {
       >
         <Title>
           听写练习
-          <Volume2 size={32} style={{ animation: 'pulse 2s infinite' }} />
+          <Volume2 size={32} className="animate-pulse" />
         </Title>
 
         <AnimatePresence mode="wait">
@@ -222,10 +247,7 @@ export default function PracticePage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              
-
               {switching ? (
-                // 骨架屏
                 <>
                   <SkeletonLine style={{ width: '80%', height: '2rem', marginBottom: '1.5rem' }} />
                   <SkeletonTextarea />
