@@ -3,9 +3,11 @@ require('dotenv').config();
 const db = require('./db');
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const sentenceRoutes = require('./routes/sentences');
+const { router: authRoutes } = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,8 +51,10 @@ app.use('/uploads', (req, res, next) => {
 app.use(express.static('public'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser()); 
 
 // ==================== 5. 路由（放在静态文件之后）===================
+app.use('/api/auth', authRoutes); 
 app.use('/api/sentences', sentenceRoutes);
 
 // 健康检查
