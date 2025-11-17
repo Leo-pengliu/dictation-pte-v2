@@ -1,5 +1,5 @@
 // src/pages/PracticePage.tsx
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DictationPlayer } from '../components/Practice/DictationPlayer';
 import { AnswerComparison } from '../components/Practice/AnswerComparison';
 import { SentenceNavigator } from '../components/Practice/SentenceNavigator';
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styled from 'styled-components';
 import { Volume2, Loader2 } from 'lucide-react';
 
-// 响应式容器
+// 容器
 const Container = styled.div`
   min-height: 100vh;
   padding: 4rem 1rem 2rem;
@@ -17,7 +17,7 @@ const Container = styled.div`
   width: 100%;
 `;
 
-// 响应式卡片
+// 卡片
 const Card = styled(motion.div)`
   background: rgba(30, 41, 59, 0.5);
   backdrop-filter: blur(12px);
@@ -31,7 +31,7 @@ const Card = styled(motion.div)`
   }
 `;
 
-// 响应式标题
+// 标题
 const Title = styled.h1`
   font-size: 1.875rem;
   font-weight: 700;
@@ -51,7 +51,7 @@ const Title = styled.h1`
   }
 `;
 
-// 响应式输入框
+// 输入框
 const Textarea = styled.textarea`
   width: 100%;
   padding: 0.875rem;
@@ -83,7 +83,7 @@ const Textarea = styled.textarea`
   }
 `;
 
-// 响应式按钮
+// 按钮
 const Button = styled(motion.button)`
   padding: 0.75rem 1rem;
   border: none;
@@ -105,7 +105,7 @@ const Button = styled(motion.button)`
   }
 `;
 
-// 响应式骨架屏
+// 骨架屏
 const SkeletonLine = styled.div`
   height: 1.5rem;
   background: linear-gradient(90deg, #334155 25%, #1e293b 50%, #334155 75%);
@@ -135,90 +135,60 @@ const SkeletonTextarea = styled.div`
 
 export default function PracticePage() {
   const [sentence, setSentence] = useState<Sentence | null>(null);
-  const [nextSentence, setNextSentence] = useState<Sentence | null>(null);
   const [userInput, setUserInput] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const nextAudioRef = useRef<HTMLAudioElement>(null);
 
-  const loadSentence = useCallback(async (page: number, isPreload = false) => {
-    if (!isPreload) setSwitching(true);
-    try {
-      const res = await api.getSentences(page);
-      const newSentence = res.data?.[0];
-      if (!newSentence) return;
+  // ⭐ 统一的翻页 / 加载函数
+  const loadSentence = useCallback(
+    async (page: number) => {
+      // 防止越界
+      if (page < 1) page = 1;
+      if (totalPages > 0 && page > totalPages) page = totalPages;
 
-      if (isPreload) {
-        setNextSentence(newSentence);
-        const audio = new Audio(`https://dictation-pte.onrender.com${newSentence.audioPath}`);
-        audio.preload = 'auto';
-        nextAudioRef.current = audio;
-      } else {
+      setSwitching(true);
+
+      try {
+        const res = await api.getSentences(page);
+        const newSentence = res.data?.[0];
+        if (!newSentence) return;
+
         setSentence(newSentence);
         setTotalPages(res.pagination.totalPages || 1);
         setCurrentPage(page);
         setUserInput('');
         setShowResult(false);
-        setNextSentence(null);
-      }
-    } catch (err) {
-      console.error('[API] 加载失败:', err);
-    } finally {
-      if (!isPreload) {
+      } catch (err) {
+        console.error('[API] 加载失败:', err);
+      } finally {
         setLoading(false);
         setSwitching(false);
       }
-    }
-  }, []);
+    },
+    [totalPages]
+  );
 
+  // 初次加载
   useEffect(() => {
     loadSentence(1);
   }, [loadSentence]);
 
-  useEffect(() => {
-    if (currentPage < totalPages && !nextSentence) {
-      loadSentence(currentPage + 1, true);
-    }
-  }, [currentPage, totalPages, nextSentence, loadSentence]);
-
-  useEffect(() => {
-    if (!sentence || loading || switching) return;
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const playWhenReady = () => {
-      audio.play().catch(() => {});
-    };
-
-    if (audio.readyState >= 3) {
-      playWhenReady();
-    } else {
-      audio.addEventListener('canplaythrough', playWhenReady, { once: true });
-    }
-
-    return () => {
-      audio.removeEventListener('canplaythrough', playWhenReady);
-    };
-  }, [sentence, loading, switching]);
-
+  // 对比答案后的“下一句”
   const handleNext = () => {
-    if (!nextSentence || currentPage >= totalPages) return;
-    setSwitching(true);
-    setSentence(nextSentence);
-    setCurrentPage(currentPage + 1);
-    setUserInput('');
-    setShowResult(false);
-    setNextSentence(null);
-    audioRef.current = nextAudioRef.current;
-    nextAudioRef.current = null;
-    setSwitching(false);
+    if (currentPage >= totalPages) return;
+    loadSentence(currentPage + 1);
   };
 
-  if (loading) {
+  // 页码导航跳转
+  const handleJump = (page: number) => {
+    if (page === currentPage) return;
+    loadSentence(page);
+  };
+
+  if (loading || !sentence) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 size={48} color="#10b981" className="animate-spin" />
@@ -241,7 +211,7 @@ export default function PracticePage() {
         <AnimatePresence mode="wait">
           {sentence && (
             <motion.div
-              key={sentence.id}
+              key={sentence.id} // ⭐ 每次换句，整个块重新挂载
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -256,9 +226,8 @@ export default function PracticePage() {
               ) : (
                 <>
                   <DictationPlayer
-                    key={sentence.id}
+                    key={sentence.id} // ⭐ 保证音频播放器跟随句子重置
                     audioUrl={`https://dictation-pte.onrender.com${sentence.audioPath}`}
-                    onReplay={() => audioRef.current?.play()}
                     autoPlay
                   />
 
@@ -303,7 +272,11 @@ export default function PracticePage() {
         </AnimatePresence>
       </Card>
 
-      <SentenceNavigator current={currentPage} total={totalPages} onJump={loadSentence} />
+      <SentenceNavigator
+        current={currentPage}
+        total={totalPages}
+        onJump={handleJump} // ⭐ 不再直接把 loadSentence 传进去
+      />
     </Container>
   );
 }

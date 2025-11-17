@@ -1,6 +1,7 @@
 // src/components/Practice/DictationPlayer.tsx
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react';
 import { motion } from 'framer-motion';
+import styled from 'styled-components';
 import { Play, RotateCw, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -9,6 +10,75 @@ interface Props {
   autoPlay?: boolean;
 }
 
+const Wrapper = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent),
+    rgba(30, 41, 59, 0.85);
+  border-radius: ${(p) => p.theme.radius.xl};
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.75);
+  margin-bottom: 1.25rem;
+`;
+
+// 圆形控制按钮
+const ControlButton = styled(motion.button)<{ disabled?: boolean }>`
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  background: radial-gradient(circle at 30% 20%, rgba(45, 212, 191, 0.35), transparent),
+    rgba(15, 23, 42, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ${(p) => (p.disabled ? 'not-allowed' : 'pointer')};
+  opacity: ${(p) => (p.disabled ? 0.6 : 1)};
+  transition: all 0.2s ease-out;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.8), 0 15px 30px rgba(6, 95, 70, 0.5);
+
+  svg {
+    /* 让图标更细腻一点 */
+    stroke-width: 2.2;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.7), 0 18px 35px rgba(5, 150, 105, 0.7);
+    background: radial-gradient(circle at 30% 20%, rgba(45, 212, 191, 0.5), transparent),
+      rgba(15, 23, 42, 0.95);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.6), 0 10px 20px rgba(5, 150, 105, 0.6);
+  }
+`;
+
+const ProgressTrack = styled.div`
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1f2937, #020617);
+  overflow: hidden;
+`;
+
+const ProgressBar = styled(motion.div)`
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #0ea5e9);
+`;
+
+const CountdownText = styled(motion.span)`
+  min-width: 3ch;
+  text-align: right;
+  font-family: ${(p) => p.theme.font.mono};
+  font-size: 1rem;
+  font-weight: 700;
+  color: #6ee7b7;
+`;
+
 export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
   ({ audioUrl, onReplay, autoPlay = false }, ref) => {
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -16,12 +86,16 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
     const [countdown, setCountdown] = useState(3);
     const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
 
-    // 暴露 ref（可选，外部可控制）
+    // 暴露 ref（可选）
     useImperativeHandle(ref, () => audioRef.current!, [audioRef]);
 
     // 倒计时 + 自动播放
     useEffect(() => {
       if (!autoPlay || !audioRef.current) return;
+
+      const audio = audioRef.current;
+      audio.pause();
+      audio.currentTime = 0;
 
       setCountdown(2);
       setHasAutoPlayed(false);
@@ -38,7 +112,10 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
         });
       }, 1000);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audioUrl, autoPlay]);
 
     const triggerPlay = async () => {
@@ -49,7 +126,6 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
         setHasAutoPlayed(true);
       } catch (err) {
         console.warn('自动播放被阻止（需用户交互）', err);
-        // 可选：提示用户点击播放
       } finally {
         setIsPlaying(false);
       }
@@ -58,23 +134,23 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
     const handleReplay = () => {
       setCountdown(0);
       onReplay?.();
-      audioRef.current?.play().catch(() => {});
+      if (!audioRef.current) return;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
     };
 
     return (
-      <motion.div
-        className="flex items-center gap-4 p-4 bg-slate-700/30 rounded-xl border border-slate-600"
+      <Wrapper
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.15 }}
       >
         {/* 播放/重播按钮 */}
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+        <ControlButton
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleReplay}
           disabled={isPlaying}
-          className="p-3 bg-emerald-500/20 rounded-full hover:bg-emerald-500/30 disabled:opacity-50 transition-colors"
         >
           {isPlaying ? (
             <Loader2 size={24} className="text-emerald-400 animate-spin" />
@@ -83,33 +159,31 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
           ) : (
             <Play size={24} className="text-emerald-400" />
           )}
-        </motion.button>
+        </ControlButton>
 
-        {/* 进度条 */}
-        <div className="flex-1 h-2 bg-slate-600 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
+        {/* 进度条动画（视觉倒计时） */}
+        <ProgressTrack>
+          <ProgressBar
             initial={{ width: '100%' }}
             animate={{ width: 0 }}
             transition={{ duration: 3, ease: 'linear' }}
             key={audioUrl}
           />
-        </div>
+        </ProgressTrack>
 
         {/* 倒计时数字 */}
-        <motion.span
+        <CountdownText
           key={countdown}
           initial={{ scale: 1.2, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="text-lg font-mono font-bold text-emerald-400 min-w-[2ch] text-right"
         >
           {countdown > 0 ? countdown : 'Play'}
-        </motion.span>
+        </CountdownText>
 
         {/* 隐藏的 audio 标签 */}
         <audio ref={audioRef} src={audioUrl} preload="auto" />
-      </motion.div>
+      </Wrapper>
     );
   }
 );

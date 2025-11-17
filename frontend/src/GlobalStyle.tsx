@@ -34,4 +34,11 @@ export const GlobalStyle = createGlobalStyle`
   .card {
     @apply bg-slate-800/50 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-slate-700/50 shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-105;
   }
+  
+  .no-autofill:-webkit-autofill,
+  .no-autofill:-webkit-autofill:hover,
+  .no-autofill:-webkit-autofill:focus,
+  .no-autofill:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s !important;
+  }
 `;
