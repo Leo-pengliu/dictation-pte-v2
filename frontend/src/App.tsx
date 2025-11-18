@@ -4,6 +4,7 @@ import PracticePage from './pages/PracticePage';
 import UploadPage from './pages/UploadPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import RSPage from './pages/RSPage';
 import HomePage from './pages/HomePage';
 import { Navigation } from './components/Navigation';
 import { AuthProvider } from './context/AuthContext';
@@ -33,6 +34,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PracticePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rs"
+            element={
+              <ProtectedRoute>
+                <RSPage />
               </ProtectedRoute>
             }
           />

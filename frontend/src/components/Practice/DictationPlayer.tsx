@@ -8,6 +8,7 @@ interface Props {
   audioUrl: string;
   onReplay?: () => void;
   autoPlay?: boolean;
+  onEnded?: () => void;
 }
 
 const Wrapper = styled(motion.div)`
@@ -80,7 +81,7 @@ const CountdownText = styled(motion.span)`
 `;
 
 export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
-  ({ audioUrl, onReplay, autoPlay = false }, ref) => {
+  ({ audioUrl, onReplay, autoPlay = false, onEnded }, ref) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [countdown, setCountdown] = useState(3);
@@ -88,6 +89,20 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
 
     // 暴露 ref（可选）
     useImperativeHandle(ref, () => audioRef.current!, [audioRef]);
+
+    // 新增：监听音频自然结束
+    useEffect(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      const handleEnded = () => {
+        setIsPlaying(false);
+        onEnded?.(); // 关键：播放完后触发外部回调
+      };
+
+      audio.addEventListener('ended', handleEnded);
+      return () => audio.removeEventListener('ended', handleEnded);
+    }, [onEnded]);
 
     // 倒计时 + 自动播放
     useEffect(() => {

@@ -20,12 +20,12 @@ export interface Pagination {
 export const api = {
   getSentences: async (page: number, limit = 1) => {
     const url = `${API}/sentences?page=${page}&limit=${limit}`;
-    console.log('[API] 请求:', url);
+    // console.log('[API] 请求:', url);
 
     try {
       const res = await fetch(url);
       const text = await res.text(); // 先读文本，防止 JSON 解析失败
-      console.log('[API] 原始响应文本:', text);
+      // console.log('[API] 原始响应文本:', text);
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${text}`);

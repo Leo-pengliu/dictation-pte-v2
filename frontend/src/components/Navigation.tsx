@@ -1,7 +1,7 @@
 // components/Navigation.tsx
 import { NavLink } from 'react-router-dom';
 import styled from 'styled-components';
-import { Headphones, Upload, Home, LogIn, User, LogOut } from 'lucide-react';
+import { Headphones, Upload, Home, LogIn, User, LogOut, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Nav = styled.nav`
@@ -126,6 +126,10 @@ export function Navigation() {
               <NavItem to="/">
                 <Headphones size={18} />
                 听写练习
+              </NavItem>
+               <NavItem to="/rs">
+                <Mic size={18} />
+                复述练习
               </NavItem>
               <NavItem to="/upload">
                 <Upload size={18} />

@@ -99,10 +99,31 @@ const Button = styled(motion.button)`
     color: white;
   }
 
+  &.secondary {
+    background: transparent;
+    border: 1px solid ${p => p.theme.colors.border};
+    color: ${p => p.theme.colors.text};
+  }
+
   @media (min-width: 640px) {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
   }
+`;
+
+// ⭐ 新增：按钮行（用来并排）
+const ButtonRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+`;
+
+// ⭐ 新增：行内按钮，让它们 1:1 平分宽度
+const InlineButton = styled(Button)`
+  flex: 1;
+  width: auto;
+  margin-top: 0;  // 行上统一控制 margin
 `;
 
 // 骨架屏
@@ -141,6 +162,7 @@ export default function PracticePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
+  const [redoKey, setRedoKey] = useState(0);
 
   // ⭐ 统一的翻页 / 加载函数
   const loadSentence = useCallback(
@@ -188,6 +210,12 @@ export default function PracticePage() {
     loadSentence(page);
   };
 
+  const handleRedoCurrent = () => {
+    setUserInput('');      // 清空输入
+    setShowResult(false);  // 回到“提交答案”状态
+    setRedoKey(k => k + 1); // 强制 DictationPlayer 重新开始播放
+  };
+
   if (loading || !sentence) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -226,7 +254,7 @@ export default function PracticePage() {
               ) : (
                 <>
                   <DictationPlayer
-                    key={sentence.id} // ⭐ 保证音频播放器跟随句子重置
+                    key={`${sentence.id}-${redoKey}`} // ⭐ 保证音频播放器跟随句子重置
                     audioUrl={`https://dictation-pte.onrender.com${sentence.audioPath}`}
                     autoPlay
                   />
@@ -254,16 +282,31 @@ export default function PracticePage() {
                         userInput={userInput}
                         explanation={sentence.explanation}
                       />
-                      <Button
-                        className="primary"
-                        onClick={handleNext}
-                        disabled={currentPage >= totalPages || switching}
-                        whileHover={{ scale: currentPage < totalPages ? 1.02 : 1 }}
-                        whileTap={{ scale: currentPage < totalPages ? 0.98 : 1 }}
-                      >
-                        {currentPage >= totalPages ? '已完成' : '下一句 →'}
-                      </Button>
+
+                      <ButtonRow>
+                        {/* 左边：重做当前这句 */}
+                        <InlineButton
+                          className="secondary"
+                          onClick={handleRedoCurrent}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          重做本句
+                        </InlineButton>
+
+                        {/* 右边：下一句 / 已完成（保留你原来的逻辑） */}
+                        <InlineButton
+                          className="primary"
+                          onClick={handleNext}
+                          disabled={currentPage >= totalPages || switching}
+                          whileHover={{ scale: currentPage < totalPages && !switching ? 1.02 : 1 }}
+                          whileTap={{ scale: currentPage < totalPages && !switching ? 0.98 : 1 }}
+                        >
+                          {currentPage >= totalPages ? '已完成' : '下一句 →'}
+                        </InlineButton>
+                      </ButtonRow>
                     </>
+
                   )}
                 </>
               )}
