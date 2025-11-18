@@ -4,7 +4,7 @@ export interface User {
   name?: string | null;
 }
 
-const BASE_URL = 'https://dictation-pte.onrender.com/api';
+const BASE_URL = 'https://dictation-pte.onrender.com';
 
 export async function register(email: string, password: string, name?: string) {
   const res = await fetch(`${BASE_URL}/api/auth/register`, {
