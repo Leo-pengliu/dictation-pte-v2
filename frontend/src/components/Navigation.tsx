@@ -212,43 +212,47 @@ export function Navigation() {
             )}
 
             {/* 移动端汉堡菜单按钮 */}
-            <MobileMenuBtn onClick={() => setOpen(true)}>
-              <Menu size={28} />
-            </MobileMenuBtn>
+            {user && (
+              <MobileMenuBtn onClick={() => setOpen(true)}>
+                <Menu size={28} />
+              </MobileMenuBtn>
+            )}
           </div>
         </Container>
       </Nav>
 
       {/* 移动端抽屉菜单 */}
-      <MobileDrawer $open={open}>
-        <button
-          style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#94a3b8' }}
-          onClick={() => setOpen(false)}
-        >
-          <X size={32} />
-        </button>
+      {user && (
+        <MobileDrawer $open={open}>
+          <button
+            style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: '#94a3b8' }}
+            onClick={() => setOpen(false)}
+          >
+            <X size={32} />
+          </button>
 
-        {user && (
-          <>
-            <div style={{ padding: '1rem', color: '#e5e7eb', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <User size={22} />
-              {user.name || user.email}
-            </div>
+          {user && (
+            <>
+              <div style={{ padding: '1rem', color: '#e5e7eb', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <User size={22} />
+                {user.name || user.email}
+              </div>
 
-            {navLinks.map(item => (
-              <NavItem key={item.to} to={item.to} onClick={() => setOpen(false)}>
-                <item.icon size={22} />
-                {item.label}
-              </NavItem>
-            ))}
+              {navLinks.map(item => (
+                <NavItem key={item.to} to={item.to} onClick={() => setOpen(false)}>
+                  <item.icon size={22} />
+                  {item.label}
+                </NavItem>
+              ))}
 
-            <LogoutBtn onClick={() => { logout(); setOpen(false); }} style={{ marginTop: '1rem' }}>
-              <LogOut size={20} />
-              退出登录
-            </LogoutBtn>
-          </>
+              <LogoutBtn onClick={() => { logout(); setOpen(false); }} style={{ marginTop: '1rem' }}>
+                <LogOut size={20} />
+                退出登录
+              </LogoutBtn>
+            </>
+          )}
+        </MobileDrawer>
         )}
-      </MobileDrawer>
     </>
   );
 }
