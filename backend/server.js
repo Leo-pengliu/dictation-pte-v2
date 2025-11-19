@@ -62,6 +62,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', time: new Date().toISOString() });
 });
 
+app.get('/api/ping', (req, res) => {
+  res.status(200).json({ status: 'ok', ts: Date.now() });
+});
+
 app.get('/', (req, res) => {
   res.send('<h1>Dictation Practice API</h1><p><a href="/health">/health</a></p>');
 });
