@@ -1,11 +1,10 @@
-// src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '../lib/auth';
 import {
-  fetchMe,
   login as apiLogin,
   register as apiRegister,
   logout as apiLogout,
+  fetchMe,
 } from '../lib/auth';
 
 interface AuthContextValue {
@@ -19,36 +18,60 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? (JSON.parse(raw) as User) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
 
-  // 初次加载：尝试从后端获取当前登录用户
+  // 初次启动：尝试用 Cookie 载入登录态（如果你仍使用后端 Session）
   useEffect(() => {
     (async () => {
+      // 如果 localStorage 里已经有 user，直接用就行（不用请求）
+      if (user) {
+        setLoading(false);
+        return;
+      }
+
+      // 否则试试 fetchMe（如果你的后端有 Cookie 机制）
       try {
         const me = await fetchMe();
-        setUser(me);
+        if (me) {
+          setUser(me);
+          localStorage.setItem('user', JSON.stringify(me));
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
+  // 登录
   const handleLogin = async (email: string, password: string) => {
     const u = await apiLogin(email, password);
     setUser(u);
+    localStorage.setItem('user', JSON.stringify(u));
   };
 
+  // 注册
   const handleRegister = async (email: string, password: string, name?: string) => {
     const u = await apiRegister(email, password, name);
     setUser(u);
+    localStorage.setItem('user', JSON.stringify(u));
   };
 
+  // 退出
   const handleLogout = async () => {
     try {
       await apiLogout();
     } finally {
       setUser(null);
+      localStorage.removeItem('user');
     }
   };
 
@@ -56,21 +79,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * 🔒 2 小时无操作自动登出（前端 idle timer）
    */
   useEffect(() => {
-    // 没有登录用户时不需要监听
     if (!user) return;
 
     let timeoutId: number;
-
     const AUTO_LOGOUT_MS = 2 * 60 * 60 * 1000; // 2 小时
 
     const logoutWhenIdle = async () => {
       await handleLogout();
-      // 强制跳回登录页，你也可以带个 query 提示 reason=timeout
       window.location.href = '/login';
     };
 
     const resetTimer = () => {
-      if (timeoutId) window.clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       timeoutId = window.setTimeout(logoutWhenIdle, AUTO_LOGOUT_MS);
     };
 
@@ -81,18 +101,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'scroll',
       'touchstart',
     ];
-
-    // 只要有任何用户操作，重置计时器
     events.forEach((evt) => window.addEventListener(evt, resetTimer));
-    // 初次进入（刚登录）时先启动计时
     resetTimer();
 
-    // 清理：用户退出 / 组件卸载时移除监听 & 计时器
     return () => {
       events.forEach((evt) => window.removeEventListener(evt, resetTimer));
-      if (timeoutId) window.clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user]); // user 变化时重新挂载
+  }, [user]);
 
   return (
     <AuthContext.Provider

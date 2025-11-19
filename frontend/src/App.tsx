@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import { Navigation } from './components/Navigation';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import WelcomePage from './pages/WelcomePage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Navigation />
         <Routes>
           {/* 未登录可访问 */}
+          <Route path="/" element={<WelcomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
@@ -30,7 +32,7 @@ export default function App() {
             }
           />
           <Route
-            path="/"
+            path="/practice"
             element={
               <ProtectedRoute>
                 <PracticePage />
