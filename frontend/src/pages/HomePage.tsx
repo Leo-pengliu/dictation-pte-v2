@@ -204,7 +204,7 @@ const HomePage: React.FC = () => {
           </Subtext>
 
           <ActionsRow>
-            <PrimaryButton to="/">
+            <PrimaryButton to="/practice">
               <Headphones size={18} />
               开始听写练习
               <ArrowRight size={16} />

@@ -162,7 +162,7 @@ export function Navigation() {
 
   const navLinks = user ? [
     { to: '/home', icon: Home, label: '主页' },
-    { to: '/', icon: Headphones, label: '听写练习' },
+    { to: '/practice', icon: Headphones, label: '听写练习' },
     { to: '/rs', icon: Mic, label: '复述练习' },
     { to: '/upload', icon: Upload, label: '上传句子' },
   ] : [];
