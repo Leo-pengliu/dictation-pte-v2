@@ -1,14 +1,8 @@
-// backend/db.js
 const { createClient } = require('@libsql/client');
 require('dotenv').config();
 
-/**
- * 1. 检查环境变量
- */
 if (!process.env.TURSO_URL || !process.env.TURSO_AUTH_TOKEN) {
   console.error('Turso environment variables missing');
-  console.error('TURSO_URL:', process.env.TURSO_URL);
-  console.error('TURSO_AUTH_TOKEN:', process.env.TURSO_AUTH_TOKEN ? 'SET' : 'MISSING');
   process.exit(1);
 }
 
@@ -22,55 +16,50 @@ function toPlainNumber(v) {
 }
 
 /**
- * 2. 兼容 sqlite3 回调风格
+ * 兼容 sqlite3 风格 API
  */
 const db = {
   get(sql, params, callback) {
-    client
-      .execute({ sql, args: params || [] })
-      .then((result) => callback(null, result.rows[0] || null))
-      .catch((err) => callback(err));
+    client.execute({ sql, args: params || [] })
+      .then(result => callback(null, result.rows[0] || null))
+      .catch(err => callback(err));
   },
 
   all(sql, params, callback) {
-    client
-      .execute({ sql, args: params || [] })
-      .then((result) => callback(null, result.rows))
-      .catch((err) => callback(err, []));
+    client.execute({ sql, args: params || [] })
+      .then(result => callback(null, result.rows))
+      .catch(err => callback(err, []));
   },
 
   run(sql, params, callback) {
-    client
-      .execute({ sql, args: params || [] })
-      .then((result) =>
+    client.execute({ sql, args: params || [] })
+      .then(result =>
         callback(null, {
           changes: toPlainNumber(result.rowsAffected ?? 0),
           lastID: toPlainNumber(result.lastInsertRowid ?? 0),
         })
       )
-      .catch((err) => callback(err));
+      .catch(err => callback(err));
   },
 
   prepare(sql) {
     return {
       run(params, callback) {
-        client
-          .execute({ sql, args: params || [] })
-          .then((result) =>
+        client.execute({ sql, args: params || [] })
+          .then(result =>
             callback(null, {
               lastID: toPlainNumber(result.lastInsertRowid ?? 0),
             })
           )
-          .catch((err) => callback(err));
+          .catch(err => callback(err));
       },
       finalize() {},
     };
   },
 };
 
-
 /**
- * 3. 初始化表结构
+ * 初始化表结构
  */
 (async () => {
   try {
@@ -86,21 +75,30 @@ const db = {
       )
     `);
 
-    // 新增 users 表
     await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT NOT NULL UNIQUE,
         passwordHash TEXT NOT NULL,
         name TEXT,
-        provider TEXT DEFAULT 'local',        -- local / google / github ...
+        provider TEXT DEFAULT 'local',
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    console.log('[DB] Turso 表初始化成功');
+    /** ⭐ 新增收藏表 */
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        sentence_id INTEGER NOT NULL,
+        UNIQUE(user_id, sentence_id)
+      )
+    `);
+
+    console.log('[DB] All tables initialized successfully');
   } catch (err) {
-    console.error('[DB] 初始化失败:', err.message);
+    console.error('[DB] Initialization failed:', err.message);
     process.exit(1);
   }
 })();
