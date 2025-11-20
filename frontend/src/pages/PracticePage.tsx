@@ -1,3 +1,4 @@
+// src/pages/PracticePage.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { DictationPlayer } from '../components/Practice/DictationPlayer';
 import { AnswerComparison } from '../components/Practice/AnswerComparison';
@@ -296,6 +297,14 @@ export default function PracticePage() {
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
   const [favoriteOnly, setFavoriteOnly] = useState(false);
 
+  // ==== 调试：观察筛选条件变化 ====
+  // useEffect(() => {
+  //   console.log('[PracticePage] 筛选条件变化 =>', {
+  //     difficultyFilter,
+  //     favoriteOnly,
+  //   });
+  // }, [difficultyFilter, favoriteOnly]);
+
   // 统一的翻页 / 加载函数（携带筛选条件）
   const loadSentence = useCallback(
     async (page: number) => {
@@ -308,11 +317,25 @@ export default function PracticePage() {
         const effectiveDifficulty =
           difficultyFilter === 'all' ? undefined : (difficultyFilter as 'easy' | 'medium' | 'hard');
 
+        // console.log('[PracticePage] ▶︎ 调用 api.getSentences 参数:', {
+        //   page,
+        //   limit: 1,
+        //   difficulty: effectiveDifficulty,
+        //   favoriteOnly,
+        // });
+
         const res = await api.getSentences(page, 1, effectiveDifficulty, favoriteOnly);
+
+        // console.log('[PracticePage] ◀︎ API 返回:', {
+        //   pagination: res.pagination,
+        //   dataLength: res.data?.length,
+        //   firstSentence: res.data?.[0],
+        // });
+
         const newSentence = res.data?.[0];
 
         if (!newSentence) {
-          // 没有数据（比如筛选后已经超出页码）
+          console.warn('[PracticePage] 当前条件下没有句子数据');
           setSentence(null);
           setTotalPages(res.pagination.totalPages || 1);
           setCurrentPage(1);
@@ -328,7 +351,7 @@ export default function PracticePage() {
         setShowResult(false);
         setRedoKey(k => k + 1);
       } catch (err) {
-        console.error('[API] 加载失败:', err);
+        console.error('[PracticePage] 加载失败:', err);
       } finally {
         setLoading(false);
         setSwitching(false);
@@ -336,6 +359,23 @@ export default function PracticePage() {
     },
     [totalPages, difficultyFilter, favoriteOnly]
   );
+
+  // ==== 调试：观察 sentence / audioUrl ====
+  // useEffect(() => {
+  //   if (!sentence) {
+  //     // console.log('[PracticePage] sentence 为空');
+  //     return;
+  //   }
+  //   const url = `https://dictation-pte.onrender.com${sentence.audioPath ?? ''}`;
+  //   // console.log('[PracticePage] 当前句子信息:', {
+  //   //   id: sentence.id,
+  //   //   difficulty: sentence.difficulty,
+  //   //   isFavorite: (sentence as any).isFavorite,
+  //   //   rawAudioPath: sentence.audioPath,
+  //   //   fullAudioUrl: url,
+  //   //   hasAudioPath: !!sentence.audioPath,
+  //   // });
+  // }, [sentence]);
 
   // 初次加载 & 筛选条件变化时重新加载第一页
   useEffect(() => {
@@ -366,6 +406,7 @@ export default function PracticePage() {
     if (!sentence || switching) return;
     try {
       const result = await api.toggleFavorite(sentence.id);
+      // console.log('[Favorite] toggle 结果:', result);
       setSentence(prev =>
         prev ? { ...prev, isFavorite: result.isFavorite } : prev
       );
@@ -390,6 +431,11 @@ export default function PracticePage() {
     medium: '中等',
     hard: '困难',
   };
+
+  const audioUrl = `https://dictation-pte.onrender.com${sentence.audioPath ?? ''}`;
+
+  // 每次渲染时也再 log 一次最终传给 DictationPlayer 的 audioUrl
+  // console.log('[PracticePage] render 时传入 DictationPlayer 的 audioUrl:', audioUrl);
 
   return (
     <Container>
@@ -452,22 +498,22 @@ export default function PracticePage() {
           </DifficultyBadge>
 
           <FavoriteBtn
-            $active={!!sentence.isFavorite}
+            $active={!!(sentence as any).isFavorite}
             onClick={handleToggleFavorite}
           >
             <Heart
               size={16}
-              fill={sentence.isFavorite ? '#fb7185' : 'none'}
-              color={sentence.isFavorite ? '#fecaca' : '#e5e7eb'}
+              fill={(sentence as any).isFavorite ? '#fb7185' : 'none'}
+              color={(sentence as any).isFavorite ? '#fecaca' : '#e5e7eb'}
             />
-            {sentence.isFavorite ? '已收藏本句' : '收藏本句'}
+            {(sentence as any).isFavorite ? '已收藏本句' : '收藏本句'}
           </FavoriteBtn>
         </MetaRow>
 
         <AnimatePresence mode="wait">
           {sentence && (
             <motion.div
-              key={sentence.id} // 每次换句，整个块重新挂载
+              key={sentence.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -485,8 +531,9 @@ export default function PracticePage() {
                 <>
                   <DictationPlayer
                     key={`${sentence.id}-${redoKey}`}
-                    audioUrl={`https://dictation-pte.onrender.com${sentence.audioPath}`}
+                    audioUrl={audioUrl}
                     autoPlay
+                    fallbackText={sentence.original} 
                   />
 
                   <Textarea
@@ -514,7 +561,6 @@ export default function PracticePage() {
                       />
 
                       <ButtonRow>
-                        {/* 左边：重做当前这句 */}
                         <InlineButton
                           className="secondary"
                           onClick={handleRedoCurrent}
@@ -524,7 +570,6 @@ export default function PracticePage() {
                           重做本句
                         </InlineButton>
 
-                        {/* 右边：下一句 / 已完成 */}
                         <InlineButton
                           className="primary"
                           onClick={handleNext}
