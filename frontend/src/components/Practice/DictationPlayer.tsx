@@ -9,7 +9,6 @@ interface Props {
   onReplay?: () => void;
   autoPlay?: boolean;
   onEnded?: () => void;
-  /** 新增：当音频加载失败时，用这个文本走浏览器 TTS 朗读 */
   fallbackText?: string;
 }
 
@@ -145,7 +144,7 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
 
     // audioUrl 变化时重置（包括筛选、翻页）
     useEffect(() => {
-      const audio = audioRef.current;
+      // const audio = audioRef.current;
       // console.log('[Player] audioUrl 变化:', {
       //   audioUrl,
       //   audioElementSrc: audio?.src,
