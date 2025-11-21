@@ -9,6 +9,7 @@ interface Props {
   onReplay?: () => void;
   autoPlay?: boolean;
   onEnded?: () => void;
+  /** 当音频损坏时，用这个英文句子走浏览器 TTS 兜底 */
   fallbackText?: string;
 }
 
@@ -82,14 +83,18 @@ const CountdownText = styled(motion.span)`
 export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
   ({ audioUrl, onReplay, autoPlay = false, onEnded, fallbackText }, ref) => {
     const audioRef = useRef<HTMLAudioElement>(null);
+
     const [isPlaying, setIsPlaying] = useState(false);
     const [countdown, setCountdown] = useState(3);
-    const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
     const [hasError, setHasError] = useState(false);
+
+    // 用 ref 保证：自动播放 & TTS 只触发一次（解决 StrictMode 下的双执行）
+    const hasAutoPlayedRef = useRef(false);
+    const ttsStartedRef = useRef(false);
 
     useImperativeHandle(ref, () => audioRef.current!, [audioRef]);
 
-    // 监听 ended
+    // ====== audio 结束：正常音频播放完后触发 onEnded ======
     useEffect(() => {
       const audio = audioRef.current;
       if (!audio) return;
@@ -103,7 +108,7 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
       return () => audio.removeEventListener('ended', handleEnded);
     }, [onEnded]);
 
-    // 监听 error：这里做兜底（TTS）
+    // ====== audio 出错：走 TTS 兜底，并在 TTS 播放完后触发 onEnded ======
     useEffect(() => {
       const audio = audioRef.current;
       if (!audio) return;
@@ -120,69 +125,76 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
           readyState: audio.readyState,
         });
 
-        // 如果有兜底文本，并且浏览器支持 speechSynthesis，则朗读文本
-        if (fallbackText && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          try {
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(fallbackText);
-            utter.lang = 'en-US';
-            utter.rate = 0.95;
-            utter.pitch = 1.0;
-            // console.log('[Player] 使用浏览器 TTS 朗读 fallback 文本:', fallbackText);
-            window.speechSynthesis.speak(utter);
-          } catch (e) {
-            console.warn('[Player] TTS 兜底失败:', e);
-          }
-        } else {
-          console.warn('[Player] 无法使用 TTS 兜底（可能浏览器不支持或没有 fallbackText）');
+        if (!fallbackText) {
+          console.warn('[Player] audio 不可用且无 fallbackText，无法 TTS 兜底');
+          // 没有 fallback 的情况下，也要给上层一个机会开始录音
+          onEnded?.();
+          return;
+        }
+
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+          console.warn('[Player] 浏览器不支持 speechSynthesis');
+          onEnded?.();
+          return;
+        }
+
+        // 避免多次触发 TTS
+        if (ttsStartedRef.current) return;
+        ttsStartedRef.current = true;
+
+        try {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(fallbackText);
+          utter.lang = 'en-US';
+          utter.rate = 0.95;
+          utter.pitch = 1.0;
+
+          utter.onend = () => {
+            onEnded?.();
+          };
+
+          window.speechSynthesis.speak(utter);
+        } catch (e) {
+          console.warn('[Player] TTS 兜底失败:', e);
+          onEnded?.();
         }
       };
 
       audio.addEventListener('error', handleError);
       return () => audio.removeEventListener('error', handleError);
-    }, [fallbackText]);
+    }, [fallbackText, onEnded]);
 
-    // audioUrl 变化时重置（包括筛选、翻页）
+    // ====== audioUrl 变化时重置状态 ======
     useEffect(() => {
-      // const audio = audioRef.current;
-      // console.log('[Player] audioUrl 变化:', {
-      //   audioUrl,
-      //   audioElementSrc: audio?.src,
-      // });
-
       setHasError(false);
-      setHasAutoPlayed(false);
       setIsPlaying(false);
-      setCountdown(2);
+      setCountdown(3);
+      hasAutoPlayedRef.current = false;
+      ttsStartedRef.current = false;
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
     }, [audioUrl]);
 
-    // 自动播放倒计时逻辑
+    // ====== 自动播放倒计时逻辑（3,2,1 后触发一次 triggerPlay）======
     useEffect(() => {
       if (!autoPlay) return;
       const audio = audioRef.current;
       if (!audio) return;
 
-      // console.log('[Player] 自动播放 useEffect 开始，当前 audio 状态:', {
-      //   src: audio.src,
-      //   readyState: audio.readyState,
-      //   networkState: audio.networkState,
-      //   error: audio.error,
-      // });
-
-      audio.pause();
-      audio.currentTime = 0;
-
       let timer: number | undefined;
+      let left = 3;
+
+      setCountdown(left);
 
       timer = window.setInterval(() => {
-        setCountdown((prev) => {
-          const next = prev - 1;
-          if (next <= 0) {
-            if (timer) window.clearInterval(timer);
-            triggerPlay();
-          }
-          return next;
-        });
+        left -= 1;
+        setCountdown(left);
+        if (left <= 0) {
+          if (timer) window.clearInterval(timer);
+          triggerPlay();
+        }
       }, 1000);
 
       return () => {
@@ -191,29 +203,23 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [audioUrl, autoPlay]);
 
+    // 真正的播放函数：用 ref 保证只执行一次
     const triggerPlay = async () => {
       const audio = audioRef.current;
       if (!audio) return;
 
-      // console.log('[Player] triggerPlay 尝试播放:', {
-      //   src: audio.src,
-      //   audioUrlProp: audioUrl,
-      //   readyState: audio.readyState,
-      //   networkState: audio.networkState,
-      //   error: audio.error,
-      // });
-
-      // 如果之前已经出错了，就不再尝试播放，交给 TTS 兜底
+      // 已经出错 → 不再尝试 play，由 error 事件里的 TTS 兜底负责
       if (hasError || audio.error) {
-        console.warn('[Player] 已经检测到 audio 出错，不再尝试 play()，交由 TTS 兜底');
+        console.warn('[Player] audio 不可用或已出错，直接使用 TTS 兜底');
         return;
       }
 
-      if (hasAutoPlayed) return;
+      if (hasAutoPlayedRef.current) return;
+      hasAutoPlayedRef.current = true;
+
       setIsPlaying(true);
       try {
         await audio.play();
-        setHasAutoPlayed(true);
       } catch (err) {
         console.warn('自动播放被阻止或音频不支持', err);
       } finally {
@@ -221,6 +227,7 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
       }
     };
 
+    // 手动重播：如果 audio 坏了，走 TTS；否则正常 replay
     const handleReplay = () => {
       setCountdown(0);
       onReplay?.();
@@ -228,17 +235,21 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
       const audio = audioRef.current;
       if (!audio) return;
 
-      // 如果有错误，直接用 TTS 重播文本
       if (hasError || audio.error) {
-        // console.log('[Player] 手动重播，但 audio 已错误，走 TTS 朗读');
-        if (fallbackText && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(fallbackText);
-          utter.lang = 'en-US';
-          utter.rate = 0.95;
-          utter.pitch = 1.0;
-          window.speechSynthesis.speak(utter);
+        if (!fallbackText || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+          return;
         }
+
+        if (ttsStartedRef.current) {
+          window.speechSynthesis.cancel();
+        }
+        ttsStartedRef.current = true;
+
+        const utter = new SpeechSynthesisUtterance(fallbackText);
+        utter.lang = 'en-US';
+        utter.rate = 0.95;
+        utter.pitch = 1.0;
+        window.speechSynthesis.speak(utter);
         return;
       }
 
@@ -265,19 +276,19 @@ export const DictationPlayer = forwardRef<HTMLAudioElement, Props>(
         >
           {isPlaying ? (
             <Loader2 size={24} className="text-emerald-400 animate-spin" />
-          ) : countdown === 0 ? (
-            <RotateCw size={24} className="text-emerald-400" />
-          ) : (
+          ) : countdown > 0 ? (
             <Play size={24} className="text-emerald-400" />
+          ) : (
+            <RotateCw size={24} className="text-emerald-400" />
           )}
         </ControlButton>
 
         <ProgressTrack>
           <ProgressBar
+            key={audioUrl}
             initial={{ width: '100%' }}
             animate={{ width: 0 }}
             transition={{ duration: 3, ease: 'linear' }}
-            key={audioUrl}
           />
         </ProgressTrack>
 
