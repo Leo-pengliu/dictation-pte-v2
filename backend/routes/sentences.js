@@ -85,69 +85,88 @@ router.post('/', upload.single('audio'), (req, res) => {
 
 
 // ===============================
-// GET /api/sentences  分页过滤
+// GET /api/sentences  分页 + 难度 + 收藏过滤
 // ===============================
 router.get('/', (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 1;
   const offset = (page - 1) * limit;
-  const difficulty = req.query.difficulty; // 可选参数
+  const difficulty = req.query.difficulty; // 可选参数，可能是 easy / medium / hard / 简单 / 中等 / 困难
+  const favoriteFlag = req.query.favorite; // '1' 表示只看收藏
 
-  // 中文/英文 → 英文枚举
+  // 小日志方便你在后端看请求参数
+  console.log('[GET /api/sentences] query =>', req.query);
+
+  // 难度：中文/英文 → 英文枚举
   const normalized = difficulty ? normalizeDifficulty(difficulty) : null;
 
   // 中文 + 英文映射，用于 SQL IN 查询
   const diffMap = {
     easy: ['easy', '简单'],
     medium: ['medium', '中等'],
-    hard: ['hard', '困难']
+    hard: ['hard', '困难'],
   };
 
   const diffValues = normalized ? diffMap[normalized] : null;
 
-  // 总数 SQL
-  const countSQL = diffValues
-    ? `SELECT COUNT(*) AS total FROM sentences WHERE difficulty IN (?, ?)`
-    : `SELECT COUNT(*) AS total FROM sentences`;
+  // 收藏筛选：favorite=1 才视为 true
+  const favoriteOnly = favoriteFlag === '1';
 
-  const countParams = diffValues ? diffValues : [];
+  // ======= 动态拼 WHERE 子句 =======
+  const whereParts = [];
+  const params = [];
 
-  db.get(countSQL, countParams, (err, countRow) => {
+  if (diffValues) {
+    whereParts.push('difficulty IN (?, ?)');
+    params.push(...diffValues);
+  }
+
+  if (favoriteOnly) {
+    whereParts.push('isFavorite = 1');
+  }
+
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  // ======= 1. 查询总数 =======
+  const countSQL = `SELECT COUNT(*) AS total FROM sentences ${whereClause}`;
+
+  db.get(countSQL, params, (err, countRow) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const total = countRow?.total || 0;
 
-    // 数据 SQL
-    const dataSQL = diffValues
-      ? `SELECT * FROM sentences WHERE difficulty IN (?, ?) ORDER BY id LIMIT ? OFFSET ?`
-      : `SELECT * FROM sentences ORDER BY id LIMIT ? OFFSET ?`;
+    // ======= 2. 查询数据 =======
+    const dataSQL = `
+      SELECT *
+      FROM sentences
+      ${whereClause}
+      ORDER BY id
+      LIMIT ? OFFSET ?
+    `;
 
-    const dataParams = diffValues
-      ? [...diffValues, limit, offset]
-      : [limit, offset];
+    const dataParams = [...params, limit, offset];
 
-    db.all(dataSQL, dataParams, (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+    db.all(dataSQL, dataParams, (err2, rows) => {
+      if (err2) return res.status(500).json({ error: err2.message });
 
-      // ⭐ 统一 difficulty
-      rows = rows.map(r => ({
+      // ⭐ 统一 difficulty（老数据中文也会被转成 easy/medium/hard）
+      const normalizedRows = rows.map(r => ({
         ...r,
-        difficulty: normalizeDifficulty(r.difficulty)
+        difficulty: normalizeDifficulty(r.difficulty),
       }));
 
       res.json({
-        data: rows,
+        data: normalizedRows,
         pagination: {
           page,
           limit,
           total,
-          totalPages: Math.ceil(total / limit) || 1
-        }
+          totalPages: Math.ceil(total / limit) || 1,
+        },
       });
     });
   });
 });
-
 
 // ===============================
 // GET /api/sentences/:id  单句
